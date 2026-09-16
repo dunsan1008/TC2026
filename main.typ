@@ -9,6 +9,7 @@
 
 #import "@preview/presio:0.1.0": *
 #import "@preview/ilm:2.1.1": *
+#import "@preview/finite:0.5.1": automaton
 
 // ==================== 한글 폰트 설정 ====================
 #let font-serif = "Noto Serif CJK KR"
@@ -752,7 +753,7 @@ $ L(M) = { w mid(|) M text("accepts") w } $
 
 
 #pagebreak()
-Theorem 111?? 정규 언어가 합집합에 대해 닫혀 있다는 정리
+교재 Theorem 1.25 정규 언어가 합집합에 대해 닫혀 있다는 정리
 
 증명은 대략 다음과 같은 방향으로 진행
 + $A$와 $B$가 정규언어이면 정규언어의 정의에 따라 \
@@ -770,18 +771,121 @@ Theorem 111?? 정규 언어가 합집합에 대해 닫혀 있다는 정리
 
 구체적인 증명 방식, 즉 $M$을 만들어내는 방식은 대략 이렇게
 
-$M_1 = (Q_1={q_1,q_2,...}, Sigma, delta_1, q_1, F_1)$ \
-$M_2 = (Q_2={p_1,p_2,...}, Sigma, delta_2, p_1, F_2)$ 로부터 다음을 만들어내기
+$M_1 = (Q_1={q_0,q_1,...}, Sigma, delta_1, q_0, F_1)$ \
+$M_2 = (Q_2={p_0,p_1,...}, Sigma, delta_2, p_0, F_2)$ 로부터 다음을 만들어내기
 
-$M = (Q = Q_1 times Q_2, thick Sigma, thick delta, thick (q_1,p_1), thick
-      F = {(s_1,s_2) mid(|) s_1 in F_1 or s_2 in F_2 })$
+$M = (Q = Q_1 times Q_2, thick Sigma, thick delta, thick (q_0,p_0), thick
+      F = {(r_1,r_2) mid(|) r_1 in F_1 or r_2 in F_2 })$
 
 여기서 $delta((q,p),a) = (delta_1(q), delta_2(p))$
 
+#pagebreak()
+합집합 예시
+
+알파벳 $Sigma = {mathtt(0), mathtt(1)}$의 문자열 `1`만 수락하는
+$M_1=(Q_1={q_0,q_1,q_2},Sigma,delta_1,q_0,F_1={q_1})$와
+같은 알파벳의 길이 2인 문자열만 모두 수락하는
+$M_2 = (Q_2={p_0,p_1,p_2,p_3},Sigma,delta_2,p_0,F_2={p_2})$
+
+#align(center)[
+  #box[#automaton(
+    layout: (
+      q0: (0,0),
+      q1: (1,2),
+      q2: (5,0),
+    ),
+    (
+      q0: (q2: 0, q1: 1), // 0을 보면 q2, 1을 보면 q1로 전이
+      q1: (q2: (0, 1)), // 0을 봐도 1을 봐도 q2로 전이
+      q2: (q2: (0, 1)), // 0을 봐도 1을 봐도 q2로 전이
+    ),
+    initial: "q0",
+    final: ("q1",),
+  )]
+  #h(4em)
+  #box[#automaton(
+    /*
+    layout: (
+      p0: (0,0),
+      p1: (4,0),
+      p2: (6,3),
+      p3: (6,3),
+    ),*/
+    (
+      p0: (p1: (0, 1)),
+      p1: (p2: (0, 1)),
+      p2: (p3: (0, 1)),
+      p3: (p3: (0, 1)),
+    ),
+    initial: "p0",
+    final: ("p2",),
+  )]
+]
+
+여기서 $q_2$나 $p_3$는 나머지 심볼들이 얼마만큼 더 들어오든
+수락되지 못하도록 처리하는 상태인데, 이런 상태를
+흡수/침몰/불능/죽은/함정/나락 상태(sink/dead/trap state)라고도 부르며
+이를 강조하기 위해 $q_d$나 $q_d$처럼 아래첨자 $d$를 써서 표기하기도 함
+
+#pagebreak()
+$L(M) = L(M_1) union L(M_2)$인
+$M = ( Q_1 times Q_2,Sigma,delta,(q_0,p_0),
+       F = F_1 times Q_2 union Q_1 times F_2 )$를 그리면
+
+#automaton(
+    layout: (
+      q00: (0+2,0), q01: (6+2,0), q02: (12+2,0), q03: (18+2,0),
+      q10: (0+0,3), q11: (6+0,3), q12: (12+0,3), q13: (18+0,3),
+      q20: (0+3,6), q21: (6+3,6), q22: (12+3,6), q23: (18+3,6),
+    ),
+    (
+      q00: (q21: 0, q11: 1),
+      q01: (q21: 0, q12: 1),
+      q02: (q23: 0, q13: 1),
+      q03: (q23: 0, q13: 1),
+      q10: (q21: (0, 1)),
+      q11: (q22: (0, 1)),
+      q12: (q23: (0, 1)),
+      q13: (q23: (0, 1)),
+      q20: (q21: (0, 1)),
+      q21: (q22: (0, 1)),
+      q22: (q23: (0, 1)),
+      q23: (q23: (0, 1)),
+    ),
+    initial: "q00",
+    final: ("q10","q11","q12","q13","q02","q22"),
+  )
+
+근데 여기서 필요 없는 상태들이 있으니까 지워보자
+
+#pagebreak()
+필요 없는(즉, 시작 상태에서 도달 불가능 unreachable) 상태 제거 연습
+#automaton(
+    layout: (
+      q00: (0+2,0), q01: (6+2,0), q02: (12+2,0), q03: (18+2,0),
+      q10: (0+0,3), q11: (6+0,3), q12: (12+0,3), q13: (18+0,3),
+      q20: (0+3,6), q21: (6+3,6), q22: (12+3,6), q23: (18+3,6),
+    ),
+    (
+      q00: (q21: 0, q11: 1),
+      q01: (q21: 0, q12: 1),
+      q02: (q23: 0, q13: 1),
+      q03: (q23: 0, q13: 1),
+      q10: (q21: (0, 1)),
+      q11: (q22: (0, 1)),
+      q12: (q23: (0, 1)),
+      q13: (q23: (0, 1)),
+      q20: (q21: (0, 1)),
+      q21: (q22: (0, 1)),
+      q22: (q23: (0, 1)),
+      q23: (q23: (0, 1)),
+    ),
+    initial: "q00",
+    final: ("q10","q11","q12","q13","q02","q22"),
+  )
 
 #pagebreak()
 
-#pagebreak()
 
 #heading(level: 2, numbering: none)[주교재 1.2 비결정성 Non-determinism]
 
@@ -793,6 +897,10 @@ $M = (Q = Q_1 times Q_2, thick Sigma, thick delta, thick (q_1,p_1), thick
 
 // #pagebreak()
 // #heading(level: 1, numbering: none)[다음 장]
+
+
+
+
 
 
 
