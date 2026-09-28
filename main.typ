@@ -1327,7 +1327,7 @@ delta(q1,0,q1).  delta(q1,1,q1). delta(q1,1,q2).  % 전이관계
 delta(q2,0,q3).  delta(q2,1,q3).
 delta(q3,1,q4).                   delta(q4,0,q4).  delta(q4,1,q4).
 start(q1).                                        % 시작상태
-final([q4]).                                      % 수락상태 집합
+final(q4).                                        % 수락상태
 
 ?- findall(X,state(X),Q), format('all states of NFA: Q = ~w~n', [Q]).
 ?- findall(X,state(X),Q), findall(R,subset(R,Q),PS),
@@ -1337,10 +1337,10 @@ final([q4]).                                      % 수락상태 집합
 NFA 정의를 바탕으로 Prolog 규칙(rule)을 통해 DFA의 정의들이 계산되도록 하자
 #code(file: "nfa2dfaNOeps1.pl")[```prolog
 % DFA 정의 
-stateD(R) :- findall(X,state(X),Q), subset(R,Q).   % DFA 상태로 Q의 부분집합을 모두 인정
-startD([X0]) :- start(X0).                                   % DFA 시작상태
-finalD(R) :- stateD(R), final(F), member(X,F), member(X,R).  % DFA 수락상태
-deltaD(R,A,R1) :- stateD(R), stepD(R,A,R1), stateD(R1).   % 전이함수
+stateD(R) :- findall(X,state(X),Q), subset(R,Q).  % DFA 상태로 Q의 부분집합을 모두 인정
+startD([X0]) :- start(X0).                              % DFA 시작상태
+finalD(R) :- stateD(R), final(X), member(X,R).          % DFA 수락상태
+deltaD(R,A,R1) :- stateD(R), stepD(R,A,R1), stateD(R1). % 전이함수
 % stepD는 NFA 상태집합 Q의 부분집합인지 검사 없이 집합R에 대해 NFA 전이관계 delta 적용
 stepD(R,A,R1) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1).
 
@@ -1349,10 +1349,11 @@ stepD(R,A,R1) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1).
 ?- deltaD([q1,q10], 1, R1) -> format('deltaD([q1,q10],...) success: ~w~n', [R1])
                             ; format('deltaD([q1,q10],...) failure ~n').
 
-?- findall(R, finalD(R), F1), format('DFA 수락상태집합: ~w~n', [F1]).
+?- findall(R, finalD(R), Rs), format('DFA 수락상태집합: ~w~n', [Rs]).
 ```]
 
 #pagebreak()
+수동으로 Prolog 쿼리를 여러 개 시도하며 돌려보는 효율적인 DFA 상태 생성 아이디어
 #code(file: "nfa2dfaNOeps1.pl")[```prolog
 ?- startD(R0), stepD(R0,1,R1), write(R1), nl.
 ?- startD(R0), stepD(R0,1,R1), stepD(R1,0,R2), write(R2), nl.
@@ -1364,21 +1365,63 @@ stepD(R,A,R1) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1).
 ```]
 
 #pagebreak()
-조금 더 효율적으로 NFA를 DFA로 변환하는 방식의 Prolog 코드부터 살펴보자.
+그런데, 미리 멱집합으루 상태 전체의 집합을 개수가 많더라도 미리 만들어 놓고 시작하는 것이 아니라
+NFA 화살표를 따라가며 계산하다 보면 중복 발생이나 순서만 다르고 집합으로 해석하면 동일한 상황인
+문제 상황이 발생 가능하므로, sort를 통해 딱 하나의 대표 집합 표현으로 통일하는 것이 좋다.
+#code(file: "nfa2dfaNOeps1.pl")[```prolog
+?- startD(R0),
+   stepD(R0,1,R1), stepD(R1,1,R2), stepD(R2,1,R3), stepD(R3,0,R4), stepD(R4,1,R5),
+   write(R5), nl. % 중복이 발생할 수도 있네 ?!?!?!?!?!
+
+?- startD(R0),
+   stepD(R0,1,R1), stepD(R1,1,R2), stepD(R2,1,R3), stepD(R3,0,R4), stepD(R4,1,R5),
+   sort(R5,S),  % sort하면 편안!!! 
+   write(S), nl.
+```]
+
+
+#pagebreak()
+이번에는 조금 더 효율적으로 NFA를 DFA로 변환하는 방식의 Prolog 코드를 살펴보자.
 #code(file: "nfa2dfaNOeps2.pl")[```prolog
 subset(    [],    []).
 subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).
 subset(   Xs ,[_|Ys]) :- subset(Xs,Ys).
-% NFA 정는 이전과 같다
+% NFA 정의는 이전과 같다
 state(q1). state(q2). state(q3). state(q4).       % 상태
 symbol(0). symbol(1).                             % 알파벳
 delta(q1,0,q1).  delta(q1,1,q1). delta(q1,1,q2).  % 전이관계
 delta(q2,0,q3).  delta(q2,1,q3).
 delta(q3,1,q4).                   delta(q4,0,q4).  delta(q4,1,q4).
 start(q1).                                        % 시작상태
-final([q4]).                                      % 수락상태 집합
+final(q4).                                      % 수락상태 집합
 
-% DFA 정의
+% stepD는 NFA 상태집합 Q의 부분집합인지 검사 없이 집합R에 대해 NFA 전이관계 delta 적용
+stepD(R,A,R2) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1), sort(R1,R2).
+% 여기 왜 sort를 해야 되는지 생각해 보기!!!
+```]
+
+이번 DFA의 정의는 `stateD`를 `stepD` 계산을 통해 생성하는 점이 다르고
+나머지 부분은 지난번 것과 같다.  (다음 슬라이드에서 계속 ...)
+
+#pagebreak()
+인공지능 에이전트에게 Prolog의 테이블링(talbing)에 대해 설명해 달라고 요청해 보기.
+
+처음 보면 마법의 가루 같아 보이지만, Python에서 `functools` 패키지의 `cache`와
+비슷한 느낌의 물건으로, 소위 memoization, caching, dynamic programming
+등등과 관련 있는 개념인데, ... 여기서는 알고리즘의 시간복잡도를 줄이는 데 응용한 것이 아니라
+애초에 무한루프 돌 녀석을 못돌게 막는 데 응용함 (마치 미로에서 이미 탐색했던 길입구에 표시하고 다시 안들어가는 것처럼)
+#code(file: "nfa2dfaNOeps2.pl")[```prolog
+% 효율적인 DFA 정의 (SWI-Prolog 구현의 tabling 활용)
+:- table stateD/1.  % 원래 무한루프로 빠지는 코드인데, 그걸 막는 마법의 가루같은 ...
+stateD(R0) :- startD(R0).
+stateD(R1) :- stateD(R), symbol(A), stepD(R,A,R1).
+
+startD([X0]) :- start(X0).                              % DFA 시작상태
+finalD(R) :- stateD(R), final(X), member(X,R).          % DFA 수락상태
+deltaD(R,A,R1) :- stateD(R), stepD(R,A,R1), stateD(R1). % 전이함수
+
+?- findall(R, stateD(R), Rs), format('DFA 상태집합: ~w~n',[Rs]).
+?- findall(R, finalD(R), Rs), format('DFA 수락상태집합: ~w~n',[Rs]).
 ```]
 
 #pagebreak()
@@ -1401,6 +1444,40 @@ $epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 
 
 // #pagebreak()
 // #heading(level: 1, numbering: none)[다음 장]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
