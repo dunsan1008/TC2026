@@ -10,6 +10,7 @@
 #import "@preview/presio:0.1.0": *
 #import "@preview/ilm:2.1.1": *
 #import "@preview/finite:0.5.1": automaton
+#import "@preview/diagraph:0.3.7": raw-render
 
 // ==================== 한글 폰트 설정 ====================
 #let font-serif = "Noto Serif CJK KR"
@@ -89,6 +90,7 @@
 
 #heading(level: 2, numbering: none)[주교재 Figure 1.30]
 $epsilon$이 없는 NFA에서 문자열 인식
+
 #code(file: "TC26hw02Fig1dot30.pl")[```prolog
 ?- atom_chars('abac', CS),
    atom_chars(Str, ['a','b','c']),
@@ -476,15 +478,56 @@ Prolog 내부적으로 전자는 `f/2`, 후자는 `f/3`와 같이 처리해
 위헤 제공하는 특수한 2항 술어(predicate)인 `=`를 사용하기만 하면 됨.
 
 #pagebreak()
-== 부분집합(subset)과 멱집합(powerset)
+== `maplist`와 `sort` <maplistPL>
+예를 들어 `maplist(f(A1,A2,...), [X1,X2,X3,...], [Y1,Y2,Y3,...])`는 \
+`f(A1,A2,...,X1,Y1), f(A1,A2,...,X2,Y2), f(A1,A2,...,X3,Y3), ...`와 같다.
+
+즉, 첫번째에 제공된 항(term), 즉 `f(A1,A2,...)`의 인자들 끝에 \
+두번째 이후로 나타나는 리스트들에서 있는 같은 위치에 있는 원소들을 추가한 다음 \
+함수 기호 `f`를를 술어로 해석하여 모두 동시에 만족되는지 알아보도록 실행한다.
+
+#code(file: "maplist1.pl")[```prolog
+even(N) :- 0 is N mod 2.
+
+% maplist over even/1
+?- ( maplist(even, [0,2,4,6,8]) -> X='all'; X='not all' ),
+   format('~w numbers are even~n',[X]).
+?- ( maplist(even, [0,2,4,7,8]) -> X='all'; X='not all' ),
+   format('~w numbers are even~n',[X]).
+```]
+
+이렇게 하나의 리스트에 대해서도 가능하고
+#pagebreak()
+
+#code(file: "maplist1.pl")[```prolog
+?- sort([2,4,1,3], Ys), format('sorted list: ~w~n', [Ys]).
+
+% maplist over sort/2
+?- maplist(sort, [[2,1,3,4],[red,green,yellow],[99,88,77,55,66]], Ys),
+   format('many sorted lists: ~w~n',[Ys]).
+% maplist over append/3 with its first argument aready provided
+?- maplist(append([1,2]), [[3],[4,5],[6,7,8]], Zs),
+   format('many lists with prefix [1,2]: ~w~n',[Zs]).
+```]
+이렇게 두 개의 리스트에 대해서도 가능하고 ...
+
+세 개나 네 개 등등도 됨
+#code(file: "maplist1.pl")[```prolog
+% maplist over append/3
+?- maplist(append, [[a1,a2],[b1,b2,b3],[c1]], [[3],[4,5],[2,3,4]], Zs),
+   format('many appended lists: ~w~n',[Zs]).
+```]
+
+#pagebreak()
+== 부분집합(subset)과 멱집합(powerset) <powersetPL>
 
 #code(file: "subset1.pl")[```prolog
-% subset(X,S) when X is a subset of S
+% subset(A,S) when A is a subset of S
 subset(    [],    []).
 subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에 포함하는 경우
 subset(   Xs, [_|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에서 제외하는 경우
 
-% powerset(X,PS) when the powerset of X is PS
+% powerset(S,PS) when the powerset of S is PS
 powerset(S, PS) :- findall(X, subset(X,S), PS).
 
 ?- subset([2],[1,2]) -> format('subset test 1 success.~n')
@@ -494,18 +537,18 @@ powerset(S, PS) :- findall(X, subset(X,S), PS).
 
 ?- powerset([1,2,3], PS), format('All subsets: ~w~n',[PS]).
 ```]
-이렇게 forall을 술어의 구현으로 활용 가능 \
+이렇게 findall을 술어의 구현으로 활용 가능 \
 하지만 이렇게 특수한 기능을 활용하면 PS로부터 S를 역산할 수는 없음에 유의
 
 #pagebreak()
 
 #code(file: "subset2.pl")[```prolog
-% subset(X,S) when X is a subset of S
+% subset(A,S) when A is a subset of S
 subset(    [],    []).
 subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에 포함하는 경우
 subset(   Xs, [_|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에서 제외하는 경우
 
-% powerset(A,PS) when the powerset of A is PS
+% powerset(S,PS) when the powerset of S is PS
 powerset(    [], [[]]).     % 공집합 {}의 멱집합은 { {} }
 powerset([X|Xs], PS) :-
   powerset(Xs,PS0),         % PS0는 첫 원소를 제외 나머지 원소들에 대한 멱집합
@@ -1147,6 +1190,10 @@ NFA가 할 수 있는 일이 많아 보여도 사실 DFA가 할 수 있는 범�
 DFA가 인식하는 언어(즉, 정규언어)가 정규 연산(즉, 합집합, 연결, 스타)에 대해 닫혀있다는 것을 증명하는 셈
 
 NFA가 정규 연산에 대해 닫혀있음을 보이는 증명 자체는 그림만 보면 따라가며 이해하기 쉽다.
+- 교재 Figure 1.46: 합집합 연산에 대해 닫힘을 증명하는 것이 DFA경우보다 이해하기 쉬움
+- 교재 Figure 1.48: 연결 연산에 대해 닫힘 증명은 DFA만으로는 잘 엄두가 나지 않던 
+- 교재 Figure 1.50: 스타 연산에 대한 닫힘 증명에 $epsilon$전이가 특히 요긴하게 활용됨
+
 
 진짜 본체는 NFA가 사실은 DFA와 동등한 능력치를 가졌을 뿐이라는 것을 증명하는 과정!!!
 
@@ -1180,7 +1227,7 @@ NFA가 정규 연산에 대해 닫혀있음을 보이는 증명 자체는 그림
 다른 교재나 자료에서는 $2^Q$로도 표기.
 
 #pagebreak()
-($epsilon$ 전이가 없는) NFA의 관계 $delta subset.eq Q times Sigma times Q$는 
+$epsilon$전이가 없는 NFA의 관계 $delta subset.eq Q times Sigma times Q$는 
 함수 $delta : Q times Sigma -> cal(P)(Q)$로 표현 가능 \
 하지만 이건 우리가 원하는 정확한 DFA의 전이함수 형태가 아님
 
@@ -1190,19 +1237,94 @@ DFA의 전이함수 형태는 $delta' : Q' times Sigma -> Q'$ 첫째 파라메�
 $ delta'(R,a) = {thin r' mid(|) r in R, thick r' in delta(r,a) thin} $
 }
 
+NFA의 시작 상태가 $q_1$라면 DFA의 시작 상태는 ${q_1}$
+
+NFA의 종료상태집합이 $F$라면 NFA의 종료상태집합 $F' = { X | X in Q', F inter X eq.not emptyset }$
+
 DFA의 상태 하나에 해당하는 멱집합의 원소 $R in cal(P)(Q)$ 즉 $R subset.eq Q$로 가능한 모든 경우의 수는 $2^(|Q|)$
 
 원래 NFA의 상태 $Q$가 $k$개라면,  
 똑같은 일을 할 수 있는 DFA를 상태 $2^k$개 이하로 항상 구성 가능!!!
 
-~
+- 단순무식한 방법: \
+  교재 증명 과정 곧이곧대로 모든 부분집합을 DFA 상태로, 즉 $Q'$를 $Q$의 멱집합으로 설정
+  - Prolog로 멱집합 계산하는 코드는 @powersetPL 을 참고
+  - 문제는, DFA 시작 상태로부터 도달 불가능한 불필요한 상태들이 많이 포함될 수 있음 \
+    (그래프를 알아보기 좋게 혹은 더 효율적으로 구성하려면 불필요한 상태들을 정리해야)
+- 조금 더 효율적인 방법: \
+  애초에 DFA 시작 상태 ${q_1}$로부터 도달 가능한 상태만 NFA 전이관계로부터 계산
+
+#pagebreak()
+
+
+#align(center)[
+  #raw-render(
+    ```dot
+    digraph NFA {
+      rankdir=LR;
+      node [shape=circle];
+      qq [shape=none, label=""]; // 시작 화살표를 위한 더미 노드
+      q1 [label="q_1"];
+      q2 [label="q_2"];
+      q3 [label="q_3"];
+      q4 [label="q_4", shape=doublecircle, peripheries=2]; // accept state
+      qq -> q1; // start state를 더미 노드에서 화살표로 표시
+      q1 -> q1 [label="0,1"];
+      q1 -> q2 [label="1"];
+      q2 -> q3 [label="0,1"];
+      q3 -> q4 [label="1"];
+      q4 -> q4 [label="0,1"];
+    }
+    ```
+  )
+]
+
+$underline({q_1})$
+
+${q_1}$,~ $underline({q_1,q_2})$ #h(6em) 
+${q_1} stretch(-->)^0 {q_1}$, #h(1em) ${q_1} stretch(-->)^0 underline({q_1,q_2})$
+
+${q_1}$,~ ${q_1,q_2}$,~ $underline({q_3})$ #h(4em)
+..., ${q_1,q_2} stretch(-->)^0 underline({q_3})$, ...
+
+${q_1}$,~ ${q_1,q_2}$,~ ${q_3}$,~ $underline({q_4})$ #h(2em)
+..., ${q_3} stretch(-->)^1 underline({q_4})$, ...
+
+이후로는 진행해도 더 이상 새로운 DFA 상태(밑줄 친 부분)가 나오지 않음
+
+
+#pagebreak()
+단순무식하게 모든 멱집합을 다 고려해 변환하는 방식의 Prolog 코드
+#code(file: "nfa2dfaNOeps.pl")[```prolog
+subset(    [],    []).
+subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).
+subset(   Xs ,[_|Ys]) :- subset(Xs,Ys).
+
+% NFA 정의
+state(q1). state(q2). state(q3). state(q4).       % 상태
+symbol(0). symbol(1).                             % 알파벳
+delta(q1,0,q1).  delta(q1,1,q1). delta(q1,1,q2).  % 전이관계
+delta(q2,0,q3).  delta(q2,1,q3).
+delta(q3,1,q4).
+delta(q4,0,q4).  delta(q4,1,q4).
+
+% DFA 정의 - NFA 정의를 바탕으로 규칙(rule)로 정의
+
+```]
+
+#pagebreak()
 
 교재 Theorem 1.39의 증명에서 $E$로 표기하는 $epsilon$-closure \
 즉, 주어진 상태(들)로부터 $epsilon$전이만으로 도달할 수 있는 상태들의 집합이라는
 개념을 활용하면, \
 $epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 있다는 증명으로 확장 가능
+- DFA의 시작 상태는 $E({q_1})$ \
+  즉, NFA 시작상태 $q_1$로부터 NFA의 $epsilon$라벨 에지들만 0회 이상 따라서 도달 가능한 모든 곳들
+- DFA의 종료상태는
+  $F' = {thin X mid(|) X in Q',thick E(X) inter F eq.not emptyset thin}$
 
 #pagebreak()
+
 #heading(level: 2, numbering: none)[주교재 1.3 정규식 Regular Expressions]
 #heading(level: 2, numbering: none)[주교재 1.3 정규언어가 아닌 언어]
 
@@ -1211,6 +1333,19 @@ $epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 
 
 // #pagebreak()
 // #heading(level: 1, numbering: none)[다음 장]
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
