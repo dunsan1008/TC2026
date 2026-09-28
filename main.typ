@@ -475,6 +475,50 @@ Prolog 내부적으로 전자는 `f/2`, 후자는 `f/3`와 같이 처리해
 자체적으로 내장하고 있으므로, Prolog에서 제공하는 두 항의 일치화 기능을
 위헤 제공하는 특수한 2항 술어(predicate)인 `=`를 사용하기만 하면 됨.
 
+#pagebreak()
+== 부분집합(subset)과 멱집합(powerset)
+
+#code(file: "subset1.pl")[```prolog
+% subset(X,S) when X is a subset of S
+subset(    [],    []).
+subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에 포함하는 경우
+subset(   Xs, [_|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에서 제외하는 경우
+
+% powerset(X,PS) when the powerset of X is PS
+powerset(S, PS) :- findall(X, subset(X,S), PS).
+
+?- subset([2],[1,2]) -> format('subset test 1 success.~n')
+                      ; format('subset test 1 failure.~n').
+?- subset([3],[1,2]) -> format('subset test 2 success.~n')
+                      ; format('subset test 2 failure.~n').
+
+?- powerset([1,2,3], PS), format('All subsets: ~w~n',[PS]).
+```]
+이렇게 forall을 술어의 구현으로 활용 가능 \
+하지만 이렇게 특수한 기능을 활용하면 PS로부터 S를 역산할 수는 없음에 유의
+
+#pagebreak()
+
+#code(file: "subset2.pl")[```prolog
+% subset(X,S) when X is a subset of S
+subset(    [],    []).
+subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에 포함하는 경우
+subset(   Xs, [_|Ys]) :- subset(Xs,Ys).  % 첫 원소를 부분집합에서 제외하는 경우
+
+% powerset(A,PS) when the powerset of A is PS
+powerset(    [], [[]]).     % 공집합 {}의 멱집합은 { {} }
+powerset([X|Xs], PS) :-
+  powerset(Xs,PS0),         % PS0는 첫 원소를 제외 나머지 원소들에 대한 멱집합
+  maplist(cons(X),PS0,PS1), % PS1 = { [X|Xs] | X in PS0 }
+  append(PS0,PS1,PS).       % PS0과 PS1의 합집합이 PS
+
+cons(X,Xs,[X|Xs]).
+
+?- powerset([1,2,3], PS), format('All subsets: ~w~n',[PS]).
+?- powerset(A, [[],[2],[1],[1,2]]), format('Orignal set: ~w~n',[A]).
+```]
+그런데 어차피 멱집합으로부터 역산할 일은 실제로는 거의 없기 때문에 \
+실용적으로는 어떻게 구현하는 보통은 상관없음
 
 //////////////////////////////////////////////////////////////////
 #pagebreak()
@@ -1087,21 +1131,78 @@ $delta$가 관계(relation)인 것 말고 또 다른 NFA의 추가 기능: $epsi
 
 
 #pagebreak()
-이런 엡실론 전이를 포함한 NFA가 인식하는 언어는 \
-연결(concatenation)에 대해 닫혀있음을 보이기/증명하기 쉬워짐
+이런 엡실론 전이를 포함한 NFA가 인식하는 언어는 
+- 합집합(union)에 대해 닫혀있음을 DFA의 경우보다 더 간단히 증명할 수 있음
+- 연결(concatenation)에 대해 닫혀있음을 증명하기 쉬워짐 \
+  (지난번에 DFA로는 어떻게 할지 엄두가 잘 안났었음)
+- 0회 이상 반복(Kleene star 또는 그냥 star)에 대해 닫혀있음을 증명하기 쉬워짐 \
+  (DFA로는 시도조차 안해봄)
 
 
 근데 NFA는 DFA가 아니잖아? ...
 
 NFA가 할 수 있는 일이 많아 보여도 사실 DFA가 할 수 있는 범위의 일밖에 못한다 ... \
-그러니까 쌤쌤이다 <== 이것까지 증명하면 .....
+그러니까 쌤쌤(동치/둥가 equivalence)이다 <== 이것까지 증명하면 .....
 
-DFA가 인식하는 언어(즉, 정규언어)가 연결에 대해 닫혀있다는 것을 증명하는 셈
+DFA가 인식하는 언어(즉, 정규언어)가 정규 연산(즉, 합집합, 연결, 스타)에 대해 닫혀있다는 것을 증명하는 셈
+
+NFA가 정규 연산에 대해 닫혀있음을 보이는 증명 자체는 그림만 보면 따라가며 이해하기 쉽다.
+
+진짜 본체는 NFA가 사실은 DFA와 동등한 능력치를 가졌을 뿐이라는 것을 증명하는 과정!!!
 
 #pagebreak()
+#heading(level: 3, numbering: none)[NFA와 DFA는 동치/등가(equivalent)]
+#v(.5em)
+일단 NFA는 DFA보다 기능이 많기 때문에 당연히
+- DFA로 할 수 있는 일(즉, 언어 인식)은 모두 NFA로 할 수 있음
+- 그러니까 DFA로 인식할 수 있는 모든 언어는 NFA로도 인식할 수 있다는 이야기
+- 왜냐하면 DFA의 함수 형태 $delta$를 관계 형태로 바꿔 표현하기만 하면 NFA가 되므로
+#v(.5em)
 
+동등하려면, 반대로 NFA로 가능한 모든 일을 DFA로도 할 수 있어야 된다는 말
+- 즉, 아무 NFA 하나를 주면 그거랑 똑같은 일을 하는 DFA를 만들 수 있어야!
+- 핵심 아이디어: 관계 형태 $delta$를 함수 형태로 바꿀 수만 있다면!!!!
 
+이해를 쉽게 하기 위해 $epsilon$이 없는 NFA만을 일단 고려해 보자.
 
+지금까지 함수(fucntion)를 관계(relation)로 이해/표현하곤 했는데, 이번엔 반대로
+- 관계 $delta subset.eq Q times Sigma times Q$ 와 동등한 내용을
+- 함수 $delta : Q times Sigma -> cal(P)(Q)$ 로 변환해서 표현 
+  (아래에서 좌변의 $delta$는 함수, 우변의 $delta$는 관계)\
+  #{ set math.equation(numbering: none)
+   $ delta(r,a) = {thin r' mid(|) (r,a,r') in delta thin } $
+  }
+  $r$에서 라벨(label) $a$를 따라 도착 가능한 모든 상태 $r'$의 "집합"을 
+  함수 $delta(r,x)$의 결과값으로 정의 \
+  (참고로, 교재 Definition 1.37의 NFA 정의가 애초에 이런 식으로 되어 있음)
+
+멱집합 $cal(P)(Q) = {X mid(|) X subset.eq Q} = 2^Q$ 모든 부분집합의 집합.
+다른 교재나 자료에서는 $2^Q$로도 표기.
+
+#pagebreak()
+($epsilon$ 전이가 없는) NFA의 관계 $delta subset.eq Q times Sigma times Q$는 
+함수 $delta : Q times Sigma -> cal(P)(Q)$로 표현 가능 \
+하지만 이건 우리가 원하는 정확한 DFA의 전이함수 형태가 아님
+
+DFA의 전이함수 형태는 $delta' : Q' times Sigma -> Q'$ 첫째 파라메터와 리턴 타입이 같아야 \
+즉, $Q' = cal(P)(Q)$가 되도록 맞춰줘야 ...  $delta' : cal(P)(Q) times Sigma -> cal(P)(Q)$
+#{ set math.equation(numbering: none)
+$ delta'(R,a) = {thin r' mid(|) r in R, thick r' in delta(r,a) thin} $
+}
+
+DFA의 상태 하나에 해당하는 멱집합의 원소 $R in cal(P)(Q)$ 즉 $R subset.eq Q$로 가능한 모든 경우의 수는 $2^(|Q|)$
+
+원래 NFA의 상태 $Q$가 $k$개라면,  
+똑같은 일을 할 수 있는 DFA를 상태 $2^k$개 이하로 항상 구성 가능!!!
+
+~
+
+교재 Theorem 1.39의 증명에서 $E$로 표기하는 $epsilon$-closure \
+즉, 주어진 상태(들)로부터 $epsilon$전이만으로 도달할 수 있는 상태들의 집합이라는
+개념을 활용하면, \
+$epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 있다는 증명으로 확장 가능
+
+#pagebreak()
 #heading(level: 2, numbering: none)[주교재 1.3 정규식 Regular Expressions]
 #heading(level: 2, numbering: none)[주교재 1.3 정규언어가 아닌 언어]
 
@@ -1110,64 +1211,6 @@ DFA가 인식하는 언어(즉, 정규언어)가 연결에 대해 닫혀있다�
 
 // #pagebreak()
 // #heading(level: 1, numbering: none)[다음 장]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
