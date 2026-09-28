@@ -511,11 +511,19 @@ even(N) :- 0 is N mod 2.
 ```]
 이렇게 두 개의 리스트에 대해서도 가능하고 ...
 
-세 개나 네 개 등등도 됨
+아래처럼 세 개나 네 개 등등도 됨
 #code(file: "maplist1.pl")[```prolog
 % maplist over append/3
 ?- maplist(append, [[a1,a2],[b1,b2,b3],[c1]], [[3],[4,5],[2,3,4]], Zs),
    format('many appended lists: ~w~n',[Zs]).
+```]
+
+#pagebreak()
+참고로 `sort`는 중복도 제거 (집합을 리스트로 표현할 때는 오히려 좋아!) \
+중복 제거 없이 중복된 원소의 개수를 유지하려면 `msort`
+#code(file: "maplist1.pl")[```prolog
+?- sort([2,1,4,3,1,2,5,4,3], Ys), format('sort result: ~w~n',[Ys]).
+?- msort([2,1,4,3,1,2,5,4,3], Ys), format('msort result: ~w~n',[Ys]).
 ```]
 
 #pagebreak()
@@ -1237,9 +1245,11 @@ DFA의 전이함수 형태는 $delta' : Q' times Sigma -> Q'$ 첫째 파라메�
 $ delta'(R,a) = {thin r' mid(|) r in R, thick r' in delta(r,a) thin} $
 }
 
-NFA의 시작 상태가 $q_1$라면 DFA의 시작 상태는 ${q_1}$
+NFA의 시작 상태가 $q_1$라면
+DFA의 시작 상태는 ${q_1}$
 
-NFA의 종료상태집합이 $F$라면 NFA의 종료상태집합 $F' = { X | X in Q', F inter X eq.not emptyset }$
+NFA의 수락상태집합이 $F$라면
+DFA의 종료상태집합 $F' = { R | R in Q', F inter R eq.not emptyset }$
 
 DFA의 상태 하나에 해당하는 멱집합의 원소 $R in cal(P)(Q)$ 즉 $R subset.eq Q$로 가능한 모든 경우의 수는 $2^(|Q|)$
 
@@ -1279,23 +1289,33 @@ DFA의 상태 하나에 해당하는 멱집합의 원소 $R in cal(P)(Q)$ 즉 $R
   )
 ]
 
-$underline({q_1})$
+- $underline({q_1})$
+  #v(.8em)
+- ${q_1}$, $underline({q_1,q_2})$ #h(12em) 
+  ${q_1} stretch(-->)^0 {q_1}$, #h(1em) ${q_1} stretch(-->)^0 underline({q_1,q_2})$
+  #v(.8em)
+- ${q_1}$, ${q_1,q_2}$, $underline({q_1,q_3})$, $underline({q_1,q_2,q_3})$ #h(3em)
+  ..., ${q_1,q_2} stretch(-->)^0 underline({q_1,q_3})$,~
+  ${q_1,q_2} stretch(-->^1 underline({q_1,q_2,q_3}))$ ...
+  #v(.8em)
+- ${q_1}$, ${q_1,q_2}$, ${q_1,q_3}$, ${q_1,q_2,q_3}$ #h(3em)
+  ...      ${q_1,q_3} stretch(-->)^1 underline({q_1,q_2,q_4})$, #v(0em)
+  #h(19em) ${q_1,q_2,q_3} stretch(-->)^1 underline({q_1,q_2,q_3,q_4})$, ...
+  #v(.8em)
+- ${q_1}$, ${q_1,q_2}$, ${q_1,q_3}$, ${q_1,q_2,q_3}$,
+  $underline({q_1,q_2,q_4})$, $underline({q_1,q_2,q_3,q_4})$
+  #h(4em) ...~...~...
+  #v(.8em)
+- ... ... ... $underline({q_1,q_3,q_4})$ ~ 아마도 여기서 이거 하나 더 안나올 듯?
+  #v(.8em)
 
-${q_1}$,~ $underline({q_1,q_2})$ #h(6em) 
-${q_1} stretch(-->)^0 {q_1}$, #h(1em) ${q_1} stretch(-->)^0 underline({q_1,q_2})$
 
-${q_1}$,~ ${q_1,q_2}$,~ $underline({q_3})$ #h(4em)
-..., ${q_1,q_2} stretch(-->)^0 underline({q_3})$, ...
-
-${q_1}$,~ ${q_1,q_2}$,~ ${q_3}$,~ $underline({q_4})$ #h(2em)
-..., ${q_3} stretch(-->)^1 underline({q_4})$, ...
-
-이후로는 진행해도 더 이상 새로운 DFA 상태(밑줄 친 부분)가 나오지 않음
+계속 이렇게 진행하다 보면 언젠가는 더 이상 새로운 DFA 상태(밑줄 친 부분)가 나오지 않음
 
 
 #pagebreak()
-단순무식하게 모든 멱집합을 다 고려해 변환하는 방식의 Prolog 코드
-#code(file: "nfa2dfaNOeps.pl")[```prolog
+단순무식하게 모든 멱집합을 다 고려해 NFA를 DFA를 변환하는 방식의 Prolog 코드부터 살펴보자.
+#code(file: "nfa2dfaNOeps1.pl")[```prolog
 subset(    [],    []).
 subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).
 subset(   Xs ,[_|Ys]) :- subset(Xs,Ys).
@@ -1305,23 +1325,71 @@ state(q1). state(q2). state(q3). state(q4).       % 상태
 symbol(0). symbol(1).                             % 알파벳
 delta(q1,0,q1).  delta(q1,1,q1). delta(q1,1,q2).  % 전이관계
 delta(q2,0,q3).  delta(q2,1,q3).
-delta(q3,1,q4).
-delta(q4,0,q4).  delta(q4,1,q4).
+delta(q3,1,q4).                   delta(q4,0,q4).  delta(q4,1,q4).
+start(q1).                                        % 시작상태
+final([q4]).                                      % 수락상태 집합
 
-% DFA 정의 - NFA 정의를 바탕으로 규칙(rule)로 정의
+?- findall(X,state(X),Q), format('all states of NFA: Q = ~w~n', [Q]).
+?- findall(X,state(X),Q), findall(R,subset(R,Q),PS),
+   format('all subsets (powerset) of Q: ~w~n', [PS]).
+```]
 
+NFA 정의를 바탕으로 Prolog 규칙(rule)을 통해 DFA의 정의들이 계산되도록 하자
+#code(file: "nfa2dfaNOeps1.pl")[```prolog
+% DFA 정의 
+stateD(R) :- findall(X,state(X),Q), subset(R,Q).   % DFA 상태로 Q의 부분집합을 모두 인정
+startD([X0]) :- start(X0).                                   % DFA 시작상태
+finalD(R) :- stateD(R), final(F), member(X,F), member(X,R).  % DFA 수락상태
+deltaD(R,A,R1) :- stateD(R), stepD(R,A,R1), stateD(R1).   % 전이함수
+% stepD는 NFA 상태집합 Q의 부분집합인지 검사 없이 집합R에 대해 NFA 전이관계 delta 적용
+stepD(R,A,R1) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1).
+
+?- stepD([q1,q10], 1, R1) -> format('stepD([q1,q10],...) success: ~w~n', [R1])
+                           ; format('stepD([q1,q10],...) failure ~n'). 
+?- deltaD([q1,q10], 1, R1) -> format('deltaD([q1,q10],...) success: ~w~n', [R1])
+                            ; format('deltaD([q1,q10],...) failure ~n').
+
+?- findall(R, finalD(R), F1), format('DFA 수락상태집합: ~w~n', [F1]).
 ```]
 
 #pagebreak()
+#code(file: "nfa2dfaNOeps1.pl")[```prolog
+?- startD(R0), stepD(R0,1,R1), write(R1), nl.
+?- startD(R0), stepD(R0,1,R1), stepD(R1,0,R2), write(R2), nl.
+?- startD(R0), stepD(R0,1,R1), stepD(R1,0,R2), stepD(R2,1,R3), write(R3), nl.
+?- startD(R0), stepD(R0,1,R1), stepD(R1,1,R2), write(R2), nl.
+?- startD(R0), stepD(R0,1,R1), stepD(R1,1,R2), stepD(R2,1,R3), write(R3), nl.
+?- startD(R0), stepD(R0,1,R1), stepD(R1,1,R2), stepD(R2,1,R3), stepD(R3,0,R4),
+   write(R4), nl.
+```]
 
+#pagebreak()
+조금 더 효율적으로 NFA를 DFA로 변환하는 방식의 Prolog 코드부터 살펴보자.
+#code(file: "nfa2dfaNOeps2.pl")[```prolog
+subset(    [],    []).
+subset([X|Xs],[X|Ys]) :- subset(Xs,Ys).
+subset(   Xs ,[_|Ys]) :- subset(Xs,Ys).
+% NFA 정는 이전과 같다
+state(q1). state(q2). state(q3). state(q4).       % 상태
+symbol(0). symbol(1).                             % 알파벳
+delta(q1,0,q1).  delta(q1,1,q1). delta(q1,1,q2).  % 전이관계
+delta(q2,0,q3).  delta(q2,1,q3).
+delta(q3,1,q4).                   delta(q4,0,q4).  delta(q4,1,q4).
+start(q1).                                        % 시작상태
+final([q4]).                                      % 수락상태 집합
+
+% DFA 정의
+```]
+
+#pagebreak()
 교재 Theorem 1.39의 증명에서 $E$로 표기하는 $epsilon$-closure \
 즉, 주어진 상태(들)로부터 $epsilon$전이만으로 도달할 수 있는 상태들의 집합이라는
 개념을 활용하면, \
 $epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 있다는 증명으로 확장 가능
 - DFA의 시작 상태는 $E({q_1})$ \
   즉, NFA 시작상태 $q_1$로부터 NFA의 $epsilon$라벨 에지들만 0회 이상 따라서 도달 가능한 모든 곳들
-- DFA의 종료상태는
-  $F' = {thin X mid(|) X in Q',thick E(X) inter F eq.not emptyset thin}$
+- DFA의 수락상태집합
+  $F' = {thin R mid(|) R in Q',thick E(X) inter R eq.not emptyset thin}$
 
 #pagebreak()
 
@@ -1333,6 +1401,33 @@ $epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 
 
 // #pagebreak()
 // #heading(level: 1, numbering: none)[다음 장]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
