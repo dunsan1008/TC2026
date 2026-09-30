@@ -1365,9 +1365,9 @@ stepD(R,A,R1) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1).
 ```]
 
 #pagebreak()
-그런데, 미리 멱집합으루 상태 전체의 집합을 개수가 많더라도 미리 만들어 놓고 시작하는 것이 아니라
-NFA 화살표를 따라가며 계산하다 보면 중복 발생이나 순서만 다르고 집합으로 해석하면 동일한 상황인
-문제 상황이 발생 가능하므로, sort를 통해 딱 하나의 대표 집합 표현으로 통일하는 것이 좋다.
+그런데, 개수가 많더라도 멱집합으로 상태 전체의 집합을 미리 만들어 놓고 시작하는 경우와 달리,
+NFA 화살표를 따라가며 계산하다 보면 중복이나 순서만 다르고 집합으로 해석하면 동일한 리스트도
+나올 수 있으므로, sort를 통해 딱 하나의 대표 집합 표현으로 통일하는 것이 좋다.
 #code(file: "nfa2dfaNOeps1.pl")[```prolog
 ?- startD(R0),
    stepD(R0,1,R1), stepD(R1,1,R2), stepD(R2,1,R3), stepD(R3,0,R4), stepD(R4,1,R5),
@@ -1393,7 +1393,7 @@ delta(q1,0,q1).  delta(q1,1,q1). delta(q1,1,q2).  % 전이관계
 delta(q2,0,q3).  delta(q2,1,q3).
 delta(q3,1,q4).                   delta(q4,0,q4).  delta(q4,1,q4).
 start(q1).                                        % 시작상태
-final(q4).                                      % 수락상태 집합
+final(q4).                                        % 수락상태 
 
 % stepD는 NFA 상태집합 Q의 부분집합인지 검사 없이 집합R에 대해 NFA 전이관계 delta 적용
 stepD(R,A,R2) :- findall(Y, ( member(X,R), delta(X,A,Y) ), R1), sort(R1,R2).
@@ -1444,6 +1444,7 @@ $epsilon$전이를 포함한 NFA로 할 수 있는 일도 모두 DFA로 할 수 
 
 // #pagebreak()
 // #heading(level: 1, numbering: none)[다음 장]
+
 
 
 
